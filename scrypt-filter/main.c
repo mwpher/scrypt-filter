@@ -31,6 +31,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <stdbool.h>
 
 #include "readpass.h"
 #include "scryptenc.h"
@@ -57,6 +58,7 @@ main(int argc, char *argv[])
 	char ch;
 	char * passwd;
 	int rc;
+	bool filter = false;
 
 #ifdef NEED_WARN_PROGNAME
 	warn_progname = "scrypt";
@@ -76,8 +78,9 @@ main(int argc, char *argv[])
 	argc--;
 	argv++;
 
+
 	/* Parse arguments. */
-	while ((ch = getopt(argc, argv, "hm:M:t:")) != -1) {
+	while ((ch = getopt(argc, argv, "hm:M:t:xE:")) != -1) {
 		switch (ch) {
 		case 'M':
 			maxmem = strtoumax(optarg, NULL, 0);
@@ -91,25 +94,60 @@ main(int argc, char *argv[])
 		default:
 			usage();
 		}
+		case 'x':
+			filter = true;
 	}
 	argc -= optind;
 	argv += optind;
 
-	/* We must have one or two parameters left. */
-	if ((argc < 1) || (argc > 2))
-		usage();
+	/* We may have one or two parameters left. */
+	if (filter != true) 	{
+		/* Execute standard input-output file checks */
+	
+		if ((argc < 1) || (argc > 2))
+			usage();
 
-	/* Open the input file. */
-	if ((infile = fopen(argv[0], "r")) == NULL) {
-		warn("Cannot open input file: %s", argv[0]);
-		exit(1);
-	}
-
-	/* If we have an output file, open it. */
-	if (argc > 1) {
-		if ((outfile = fopen(argv[1], "w")) == NULL) {
-			warn("Cannot open output file: %s", argv[1]);
+		/* Open the input file. */
+		if ((infile = fopen(argv[0], "r")) == NULL) {
+			warn("Cannot open input file: %s", argv[0]);
 			exit(1);
+		}
+
+		/* If we have an output file, open it. */
+		if (argc > 1) {
+			if ((outfile = fopen(argv[1], "w")) == NULL) {
+				warn("Cannot open output file: %s", argv[1]);
+				exit(1);
+			}
+		}
+	}
+	else if (filter == true) {
+	/* Filter-mode processing of remaining arguments */
+		if (argc > 2)
+			usage();
+
+		if (argc == 0) {
+			infile = stdin;
+			outfile = stdout;
+		}
+		
+		/* Assign the input. No check for null argv[0] as it's already checked for.*/
+		if (argv[0] == '-' ) 
+			infile = stdin;
+		else {
+			warn("-x flag used, but input file specified!\nUse a '-' or no arguments at all.\n");
+			usage();
+		}
+
+		/* If we have an output file, open it. */
+		if (argc > 1) {
+			if (argv[1] == '-')  {
+				outfile = stdout;
+			}
+			else {
+				warn("-x flag used, but output file specified!\nUse a '-' or no arguments at all.\n");
+				usage();
+			}
 		}
 	}
 
